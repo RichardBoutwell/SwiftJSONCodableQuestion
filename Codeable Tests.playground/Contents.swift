@@ -1,6 +1,8 @@
 import Foundation
 import PlaygroundSupport
 
+
+// Simplified struct to hold color sample LAB data
 struct CIELab: Codable {
     var L = 50.0
     var A = 0.0
@@ -13,14 +15,6 @@ struct CIELab: Codable {
     }
     
 }
-
-let quadArray : [[Double]] = [[0.0, 5.0],[0.0, 0.0],[0.0, 10.0],[0.0, 20]]
-
-
-let lab1 = CIELab(lab: (96, 0.1, 0.2))
-let lab2 = CIELab(lab: (94, 0.2, 0.4))
-let lab3 = CIELab(lab: (90, 0.1, 0.2))
-let lab4 = CIELab(lab: (84, 0.2, 0.4))
 
 
 struct QTPInkProfile: Codable {
@@ -117,171 +111,131 @@ let jsonProfileData = jsonQTPInkProfile.data(using: .utf8)
 let profileDecoder = JSONDecoder()
 let profile = try decoder.decode(QTPInkProfile.self, from: jsonProfileData!)
 
+/// MARK: Trying to using Core Data managed objects and archiver
+let quadArray : [[Double]] = [[0.0, 5.0],[0.0, 0.0],[0.0, 10.0],[0.0, 20]]
 
-//class LabData : NSObject, NSSecureCoding, Codable {
-//    static var supportsSecureCoding: Bool = true
-//
-//    var colorArray = [CIELab]()
-//
-//    func encode(with aCoder: NSCoder) {
-//        aCoder.encode(colorArray, forKey: "colorArray")
-//    }
-//
-//    required init?(coder aDecoder: NSCoder) {
-//        self.colorArray = aDecoder.decodeObject() as! [CIELab]
-//        super.init()
-//    }
-//
-//    override init(){
-//        super.init()
-//    }
-//}
+let lab1 = CIELab(lab: (96, 0.1, 0.2))
+let lab2 = CIELab(lab: (94, 0.2, 0.4))
+let lab3 = CIELab(lab: (90, 0.1, 0.2))
+let lab4 = CIELab(lab: (84, 0.2, 0.4))
 
 
-//public class InkComponent : NSObject, Codable {
-//    public var name = "Curve Name"
-//           var labArray = [CIELab]()
-//    public var curveArray = [[Double]]()
-//    public var blackInkType = true
+class LabData : NSObject, NSSecureCoding, Codable {
+    static var supportsSecureCoding: Bool = true
+
+    var colorArray = [CIELab]()
+
+    func encode(with aCoder: NSCoder) {
+        aCoder.encode(colorArray, forKey: "colorArray")
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        self.colorArray = aDecoder.decodeObject() as! [CIELab]
+        super.init()
+    }
+
+    override init(){
+        super.init()
+    }
+}
+
+
+public class InkComponent : NSObject, Codable {
+    public var name = "Curve Name"
+           var labArray = [CIELab]()
+    public var curveArray = [[Double]]()
+    public var blackInkType = true
+
+    init(blackInk: Bool, componentName: String) {
+        blackInkType = true
+        self.name = componentName
+    }
+
+
+    func encode(with aCoder: NSCoder) {
+        aCoder.encode(labArray, forKey: "labArray")
+        aCoder.encode(name, forKey: "name")
+        aCoder.encode(curveArray, forKey: "curveArray")
+        aCoder.encode(blackInkType, forKey: "blackInkType")
+    }
+
+    required init?(coder aDecoder: NSCoder) {
+        self.name = aDecoder.decodeObject() as! String
+        self.labArray = aDecoder.decodeObject() as! [CIELab]
+        self.curveArray = aDecoder.decodeObject() as! [[Double]]
+
+        self.blackInkType = aDecoder.decodeObject() as! Bool
+        super.init()
+    }
+
+    override init(){
+        super.init()
+    }
+
+}
+
+public class InkComponents : NSObject, Codable {
+
+    public var profiles : [InkComponent]
+
+    public func encode(with coder: NSCoder) {
+        coder.encode(self.profiles, forKey: "profiles")
+    }
+
+    public required init?(coder: NSCoder) {
+        self.profiles = (coder.decodeObject(forKey: "profiles") as? [InkComponent])!
+    }
+
+    init(profiles: [InkComponent]) {
+        self.profiles = profiles
+    }
+
+}
+
+var lab = LabData()
+lab.colorArray = [lab1, lab2, lab3, lab4]
+
+
+let component1 = InkComponent(blackInk: true, componentName: "black curve")
+component1.labArray = lab.colorArray
+component1.curveArray = quadArray
+
+let cdProfile = InkComponents(profiles: [component1])
+
+let profileArchiver = NSKeyedArchiver(requiringSecureCoding: true)
+try! profileArchiver.encodeEncodable(profile, forKey: "InkComponents")
+
+profileArchiver.finishEncoding()
+
+let profileData = profileArchiver.encodedData
+let unarchivedProfile = try! NSKeyedUnarchiver(forReadingFrom: profileData)
+if unarchivedProfile.containsValue(forKey: "InkComponents") {
+    let unarchivedData = unarchivedProfile.decodeDecodable(InkComponents.self, forKey: "InkComponents")
+    let profile = unarchivedData?.profiles
+    let ink1 = profile![0]
+    let lab = ink1.labArray
+    print(lab)
+    let curve = ink1.curveArray
+    print(curve)
+}
+
+let labArchiver = NSKeyedArchiver(requiringSecureCoding: true)
+
+try! labArchiver.encodeEncodable(lab, forKey: "LabData")
+
+labArchiver.finishEncoding()
 //
-//    init(blackInk: Bool, componentName: String) {
-//        blackInkType = true
-//        self.name = componentName
-//    }
+let dataLab = labArchiver.encodedData
 //
-//
-//    func encode(with aCoder: NSCoder) {
-//        aCoder.encode(labArray, forKey: "labArray")
-//        aCoder.encode(name, forKey: "name")
-//        aCoder.encode(curveArray, forKey: "curveArray")
-//        aCoder.encode(blackInkType, forKey: "blackInkType")
-//    }
-//
-//    required init?(coder aDecoder: NSCoder) {
-//        self.name = aDecoder.decodeObject() as! String
-//        self.labArray = aDecoder.decodeObject() as! [CIELab]
-//        self.curveArray = aDecoder.decodeObject() as! [[Double]]
-//
-//        self.blackInkType = aDecoder.decodeObject() as! Bool
-//        super.init()
-//    }
-//
-//    override init(){
-//        super.init()
-//    }
-//
-//}
-//
-//public class InkComponents : NSObject, Codable {
-//
-//    public var profiles : [InkComponent]
-//
-//    public func encode(with coder: NSCoder) {
-//        coder.encode(self.profiles, forKey: "profiles")
-//    }
-//
-//    public required init?(coder: NSCoder) {
-//        self.profiles = (coder.decodeObject(forKey: "profiles") as? [InkComponent])!
-//    }
-//
-//    init(profiles: [InkComponent]) {
-//        self.profiles = profiles
-//    }
-//
-//}
+let unarchLab = try! NSKeyedUnarchiver(forReadingFrom: dataLab)
+if unarchLab.containsValue(forKey: "LabData") {
+    print("is data lab")
+    let oldLab = unarchLab.decodeDecodable(LabData.self, forKey: "LabData")
+    print(oldLab!.colorArray)
+}
 
 
 
-//var lab = LabData()
-//lab.colorArray = [lab1, lab2, lab3, lab4]
-//
-//
-//let component1 = InkComponent(blackInk: true, componentName: "black curve")
-//component1.labArray = lab.colorArray
-//component1.curveArray = quadArray
-//
-//let profile = InkComponents(profiles: [component1])
-//
-//let profileArchiver = NSKeyedArchiver(requiringSecureCoding: true)
-//try! profileArchiver.encodeEncodable(profile, forKey: "InkComponents")
-//
-//profileArchiver.finishEncoding()
-//
-//let profileData = profileArchiver.encodedData
-//let unarchivedProfile = try! NSKeyedUnarchiver(forReadingFrom: profileData)
-//if unarchivedProfile.containsValue(forKey: "InkComponents") {
-//    let unarchivedData = unarchivedProfile.decodeDecodable(InkComponents.self, forKey: "InkComponents")
-//    let profile = unarchivedData?.profiles
-//    let ink1 = profile![0]
-//    let lab = ink1.labArray
-//    print(lab)
-//    let curve = ink1.curveArray
-//    print(curve)
-//}
-//
-//let labArchiver = NSKeyedArchiver(requiringSecureCoding: true)
-//
-//try! labArchiver.encodeEncodable(lab, forKey: "LabData")
-//
-//labArchiver.finishEncoding()
-////
-//let dataLab = labArchiver.encodedData
-////
-//let unarchLab = try! NSKeyedUnarchiver(forReadingFrom: dataLab)
-//if unarchLab.containsValue(forKey: "LabData") {
-//    print("is data lab")
-//    let oldLab = unarchLab.decodeDecodable(LabData.self, forKey: "LabData")
-//    print(oldLab!.colorArray)
-//}
-
-
-
-
-
-//class Gen : NSObject, NSSecureCoding{
-//    static var supportsSecureCoding: Bool = true
-//
-//    var prop01 : Float = 23
-//    var name : String = "name"
-//    var opt : Int? = nil
-//
-//    func encode(with aCoder: NSCoder) {
-//        aCoder.encode(prop01, forKey: "prop01")
-//        aCoder.encode(name, forKey:"name")
-//        aCoder.encode(opt, forKey:"opt")
-//    }
-//
-//    required init?(coder aDecoder: NSCoder) {
-//        self.prop01 = aDecoder.decodeFloat(forKey: "prop01")
-//        self.name = aDecoder.decodeObject(forKey: "name") as! String
-//        self.opt = aDecoder.decodeObject(forKey: "opt") as? Int
-//        super.init()
-//    }
-//
-//    override init(){
-//        super.init()
-//    }
-//}
-//
-
-//let aGen = Gen()
-//// now we make the code that will compress it down to data.
-//
-//let arch = NSKeyedArchiver(requiringSecureCoding: true)
-//arch.encode(aGen, forKey: "Gen")
-//arch.finishEncoding()
-//
-//let theData = arch.encodedData
-//
-//// now we have the data. let's see if we can uncompress it.
-//let unarch = try NSKeyedUnarchiver(forReadingFrom: theData)
-//
-//if unarch.containsValue(forKey: "Gen"){
-//    let oldGen = unarch.decodeObject(of:Gen.self, forKey: "Gen")
-//    let nameTest = oldGen?.name
-//    let prop01Test = oldGen?.prop01
-//    let opttest = oldGen?.opt
-//}
 
 
 
